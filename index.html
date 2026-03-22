@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Destawell | Mobile Pentesting Tools & Automation</title>
+  <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/b/b5/Termux.svg" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --text: #e2e8f0;
+      --accent: #10b981;
+      --secondary: #64748b;
+      --card: #111827;
+      --border: #1f2937;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 0 5%; }
+
+    header.navbar {
+      position: fixed; top:0; left:0; right:0;
+      background: rgba(10,14,20,0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 5%;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 1000;
+    }
+    .logo { font-size: 2rem; font-weight: 700; color: var(--accent); text-decoration: none; }
+    nav a { color: var(--text); margin-left: 2rem; text-decoration: none; font-weight: 500; transition: color 0.3s; }
+    nav a:hover { color: var(--accent); }
+
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; text-align: center;
+      background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)),
+                  url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=75&w=1600&fm=webp') center/cover no-repeat;
+      padding: 8rem 5% 4rem;
+    }
+    .hero h1 { font-size: 5rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.1; }
+    .hero p { font-size: 1.6rem; max-width: 800px; margin: 0 auto 3rem; opacity: 0.9; }
+    
+    .btn-group { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+    .btn { 
+      background: var(--accent); color: #000; padding: 1rem 2.5rem; 
+      font-weight: 600; border-radius: 6px; text-decoration: none; 
+      transition: all 0.3s; display: inline-block;
+    }
+    .btn-outline {
+      background: transparent; color: var(--accent); border: 2px solid var(--accent);
+    }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(16,185,129,0.3); }
+
+    .section { padding: 8rem 0; }
+    .section h2 { font-size: 3.5rem; text-align: center; margin-bottom: 4rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; }
+
+    .service-card, .project-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px; 
+      overflow: hidden; transition: all 0.4s; position: relative;
+    }
+    .service-card:hover, .project-card:hover { 
+      transform: translateY(-12px); border-color: var(--accent); 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
+    }
+    .project-card img { width: 100%; height: 240px; object-fit: cover; display: block; }
+    .card-content { padding: 2rem; }
+    .card-content h3 { font-size: 1.6rem; margin-bottom: 1rem; }
+    .tag { background: #1e293b; color: var(--accent); padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.9rem; margin-right: 0.5rem; }
+
+    /* New Certs Section Styling */
+    .cert-badge {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid var(--accent);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 600px;
+        margin: 2rem auto;
+    }
+
+    footer { background: #000; padding: 4rem 5% 2rem; text-align: center; border-top: 1px solid var(--border); }
+    .social a { color: var(--text); font-size: 2rem; margin: 0 1.5rem; transition: color 0.3s; }
+    .social a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="#home" class="logo">Destawell</a>
+    <nav>
+      <a href="#projects">Tools</a>
+      <a href="#about">About</a>
+      <a href="credentials.html">Credentials</a>
+      <a href="https://github.com/Niranj-coder" target="_blank"><i class="fab fa-github"></i></a>
+    </nav>
+  </header>
+
+  <section class="hero" id="home">
+    <div class="container">
+      <h1>Build Mobile Pentesting Solutions</h1>
+      <p>Innovate. Automate. Secure. No-root Termux & Kali NetHunter tools for Android cybersecurity.</p>
+      <div class="btn-group">
+        <a href="#projects" class="btn">Explore Tools</a>
+        <a href="credentials.html" class="btn btn-outline">View Credentials</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="projects">
+    <div class="container">
+      <h2>Selected Projects</h2>
+      <div class="grid">
+        <div class="project-card">
+          <img src="https://user-images.githubusercontent.com/105337186/194887969-968bf5fc-dd96-4cab-b317-61cea9254c2c.jpg" alt="Termux-fixer">
+          <div class="card-content">
+            <h3>Termux-fixer</h3>
+            <p>One-command fix for storage permissions and repo errors.</p>
+            <a href="https://github.com/Niranj-coder/Termux-fixer" target="_blank" class="btn" style="width:100%; text-align:center; margin-top:1rem;">Source Code</a>
+          </div>
+        </div>
+        </div>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <div class="container">
+      <h2>Professional Background</h2>
+      <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Aspiring Security Researcher focused on Malware Analysis and mobile-first lab environments.</p>
+        
+        <div class="cert-badge">
+            <i class="fas fa-shield-halved" style="font-size: 3rem; color: var(--accent); margin-bottom: 1rem;"></i>
+            <h3>Ethical Hacker Certified</h3>
+            <p>Issued by Cisco Networking Academy (2026)</p>
+            <a href="credentials.html" style="color: var(--accent); text-decoration: underline; display: block; margin-top: 1rem;">Verify Achievement →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 Destawell | Packets encrypted • Logs erased</p>
+      <div class="social">
+        <a href="https://github.com/Niranj-coder" target="_blank"><i class="fab fa-github"></i></a>
+        <a href="https://www.linkedin.com/in/niranj-maheswar-0949883b3" target="_blank"><i class="fab fa-linkedin"></i></a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+
