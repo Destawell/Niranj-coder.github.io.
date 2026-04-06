@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Destawell — Mobile Pentesting</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #050608;
+      --white: #f0ede8;
+      --green: #00ff87;
+      --green-dim: #00c96a;
+      --grey: #1a1c22;
+      --grey2: #2a2d35;
+      --muted: #6b7080;
+      --card-bg: #0d0f14;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--black);
+      color: var(--white);
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* ── CUSTOM CURSOR ── */
+    .cursor {
+      width: 10px; height: 10px;
+      background: var(--green);
+      border-radius: 50%;
+      position: fixed; top: 0; left: 0;
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.15s ease, width 0.3s, height 0.3s, background 0.3s;
+      mix-blend-mode: difference;
+    }
+    .cursor-ring {
+      width: 36px; height: 36px;
+      border: 1.5px solid rgba(0,255,135,0.5);
+      border-radius: 50%;
+      position: fixed; top: 0; left: 0;
+      pointer-events: none;
+      z-index: 9998;
+      transition: transform 0.35s cubic-bezier(0.23,1,0.32,1);
+    }
+    body:has(a:hover) .cursor, body:has(button:hover) .cursor {
+      transform: translate(-50%,-50%) scale(2.5);
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9000; opacity: 0.35;
+    }
+
+    /* ── SCANLINES ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,255,135,0.015) 2px,
+        rgba(0,255,135,0.015) 4px
+      );
+      pointer-events: none; z-index: 8999;
+      animation: scanline-drift 8s linear infinite;
+    }
+    @keyframes scanline-drift {
+      from { background-position: 0 0; }
+      to   { background-position: 0 200px; }
+    }
+
+    /* ── DATA STREAM CANVAS ── */
+    #matrix-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.04;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 1.6rem 4rem;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 800;
+      backdrop-filter: blur(20px);
+      background: rgba(5,6,8,0.6);
+    }
+    nav::after {
+      content: '';
+      position: absolute; bottom: 0; left: 4rem; right: 4rem;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,135,0.15), transparent);
+    }
+    .nav-logo {
+      font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--white); text-decoration: none;
+    }
+    .nav-logo span { color: var(--green); }
+    .nav-links { display: flex; gap: 2.5rem; align-items: center; }
+    .nav-links a {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.3s;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute; bottom: -3px; left: 0; right: 0; height: 1px;
+      background: var(--green);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.3s cubic-bezier(0.23,1,0.32,1);
+    }
+    .nav-links a:hover { color: var(--white); }
+    .nav-links a:hover::after { transform: scaleX(1); }
+    .nav-cta {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+      background: transparent; border: 1px solid rgba(0,255,135,0.3);
+      color: var(--green); padding: 0.55rem 1.3rem; border-radius: 3px;
+      cursor: none; transition: all 0.3s; text-decoration: none;
+    }
+    .nav-cta:hover { background: var(--green); color: var(--black); border-color: var(--green); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: flex-end;
+      padding: 0 4rem 5rem;
+      position: relative; overflow: hidden;
+    }
+    .hero-grid-bg {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,135,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,135,0.04) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+      animation: grid-pulse 4s ease-in-out infinite alternate;
+    }
+    @keyframes grid-pulse {
+      from { opacity: 0.6; }
+      to   { opacity: 1; }
+    }
+    .hero-orb {
+      position: absolute;
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(0,255,135,0.09) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%,-50%);
+      pointer-events: none;
+      animation: pulse-orb 6s ease-in-out infinite alternate;
+    }
+    @keyframes pulse-orb {
+      from { transform: translate(-50%,-50%) scale(1); opacity: 0.5; }
+      to   { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+    }
+    .hero-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .hero-eyebrow::before {
+      content: ''; display: inline-block;
+      width: 28px; height: 1px; background: var(--green);
+    }
+    .hero h1 {
+      font-size: clamp(3.5rem, 8vw, 8.5rem);
+      font-weight: 800; line-height: 0.92;
+      letter-spacing: -0.04em;
+      max-width: 1100px;
+    }
+    .hero h1 .outline {
+      -webkit-text-stroke: 1.5px rgba(240,237,232,0.25);
+      color: transparent;
+    }
+    .hero h1 .green { color: var(--green); }
+    .hero-bottom {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      width: 100%; margin-top: 4rem;
+      flex-wrap: wrap; gap: 2rem;
+    }
+    .hero-desc {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem; line-height: 1.8; color: var(--muted);
+      max-width: 360px;
+    }
+    .hero-stats { display: flex; gap: 3rem; }
+    .hero-stat-num {
+      font-size: 2.8rem; font-weight: 800; line-height: 1;
+      color: var(--white); letter-spacing: -0.03em;
+    }
+    .hero-stat-num span { color: var(--green); }
+    .hero-stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-top: 0.4rem;
+    }
+    .scroll-hint {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+      animation: bounce-hint 2s ease-in-out infinite;
+    }
+    .scroll-hint::after {
+      content: ''; width: 1px; height: 50px;
+      background: linear-gradient(to bottom, var(--muted), transparent);
+    }
+    @keyframes bounce-hint {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(6px); }
+    }
+
+    /* ── MARQUEE ── */
+    .marquee-wrap {
+      border-top: 1px solid var(--grey);
+      border-bottom: 1px solid var(--grey);
+      padding: 1.2rem 0; overflow: hidden; position: relative;
+    }
+    .marquee-track {
+      display: flex; gap: 0;
+      animation: marquee-scroll 20s linear infinite;
+      width: max-content;
+    }
+    .marquee-item {
+      white-space: nowrap;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--muted); padding: 0 3rem;
+    }
+    .marquee-item .dot { color: var(--green); margin-right: 3rem; }
+    @keyframes marquee-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── SECTION BASICS ── */
+    section { padding: 8rem 4rem; position: relative; }
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 3rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .section-label::before {
+      content: ''; width: 20px; height: 1px; background: var(--green);
+    }
+    .section-label .index { color: var(--muted); }
+    .section-heading {
+      font-size: clamp(2.2rem, 4vw, 4rem);
+      font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.05; margin-bottom: 5rem;
+      max-width: 700px;
+    }
+    .section-heading .outline {
+      -webkit-text-stroke: 1px rgba(240,237,232,0.2);
+      color: transparent;
+    }
+
+    /* ── TOOLS / SERVICES ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--grey);
+    }
+    .tool-card {
+      padding: 3rem 2.5rem;
+      border-right: 1px solid var(--grey);
+      position: relative; overflow: hidden;
+      transition: background 0.4s;
+    }
+    .tool-card:last-child { border-right: none; }
+    .tool-card::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: var(--green);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.5s cubic-bezier(0.23,1,0.32,1);
+    }
+    .tool-card::after {
+      content: '';
+      position: absolute; top: -100%; left: -10%;
+      width: 120%; height: 50%;
+      background: linear-gradient(180deg, transparent, rgba(0,255,135,0.04), transparent);
+      transform: skewY(-5deg);
+      transition: top 0.6s cubic-bezier(0.23,1,0.32,1);
+    }
+    .tool-card:hover { background: rgba(0,255,135,0.02); }
+    .tool-card:hover::before { transform: scaleX(1); }
+    .tool-card:hover::after { top: 120%; }
+    .tool-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; color: var(--green); letter-spacing: 0.1em;
+      margin-bottom: 2rem;
+    }
+    .tool-card h3 {
+      font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em;
+      margin-bottom: 1rem; line-height: 1.2;
+    }
+    .tool-card p {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem; line-height: 1.8; color: var(--muted);
+    }
+    .tool-arrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--green); margin-top: 2rem;
+      transition: gap 0.3s;
+    }
+    .tool-card:hover .tool-arrow { gap: 0.9rem; }
+
+    /* ── PROJECTS ── */
+    .projects-list { display: flex; flex-direction: column; gap: 0; }
+    .project-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 200px 160px;
+      align-items: center;
+      padding: 2rem 0;
+      border-bottom: 1px solid var(--grey);
+      text-decoration: none; color: var(--white);
+      position: relative;
+      transition: padding-left 0.4s cubic-bezier(0.23,1,0.32,1);
+      gap: 2rem; cursor: none;
+    }
+    .project-row::before {
+      content: '';
+      position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+      background: rgba(0,255,135,0.03);
+      transition: width 0.4s cubic-bezier(0.23,1,0.32,1);
+      pointer-events: none;
+    }
+    .project-row:hover { padding-left: 1rem; }
+    .project-row:hover::before { width: 100%; }
+    .project-row:first-child { border-top: 1px solid var(--grey); }
+    .project-index {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em;
+    }
+    .project-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .project-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .project-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+      border: 1px solid var(--grey2);
+      color: var(--muted); padding: 0.3rem 0.8rem; border-radius: 2px;
+      transition: border-color 0.3s, color 0.3s;
+    }
+    .project-row:hover .project-tag { border-color: rgba(0,255,135,0.3); color: var(--green); }
+    .project-link {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); text-align: right;
+      display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
+      transition: color 0.3s, gap 0.3s;
+    }
+    .project-row:hover .project-link { color: var(--green); gap: 0.9rem; }
+
+    /* ── ABOUT ── */
+    .about-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8rem; align-items: start;
+    }
+    .about-text p {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.88rem; line-height: 2;
+      color: var(--muted); margin-bottom: 1.5rem;
+    }
+    .about-text p strong { color: var(--white); font-weight: 500; }
+    .about-skills { margin-top: 3rem; }
+    .skill-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.2rem 0; border-bottom: 1px solid var(--grey);
+    }
+    .skill-row:first-child { border-top: 1px solid var(--grey); }
+    .skill-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--white);
+    }
+    .skill-bar-wrap {
+      width: 160px; height: 2px;
+      background: var(--grey2); border-radius: 2px; position: relative; overflow: hidden;
+    }
+    .skill-bar {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: var(--green); border-radius: 2px;
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 1s cubic-bezier(0.23,1,0.32,1);
+    }
+    .about-right { position: sticky; top: 8rem; }
+    .about-card {
+      background: var(--card-bg);
+      border: 1px solid var(--grey);
+      padding: 2.5rem; border-radius: 4px;
+    }
+    .about-card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1.5rem;
+    }
+    .about-card-stat {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 1rem 0; border-bottom: 1px solid var(--grey);
+    }
+    .about-card-stat:last-child { border-bottom: none; }
+    .about-card-stat-num {
+      font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--white);
+    }
+    .about-card-stat-num span { color: var(--green); }
+    .about-card-stat-desc {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .terminal-block {
+      margin-top: 2rem;
+      background: #0a0c10; border: 1px solid var(--grey);
+      border-radius: 4px; overflow: hidden;
+    }
+    .terminal-bar {
+      background: var(--grey); padding: 0.6rem 1rem;
+      display: flex; gap: 0.5rem; align-items: center;
+    }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red    { background: #ff5f57; }
+    .terminal-dot.yellow { background: #febc2e; }
+    .terminal-dot.green  { background: #28c840; }
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem; line-height: 2; color: var(--muted);
+    }
+    .terminal-body .cmd  { color: var(--green); }
+    .terminal-body .out  { color: #a0aec0; }
+    .terminal-cursor {
+      display: inline-block; width: 8px; height: 14px;
+      background: var(--green); vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── CONTACT / FOOTER ── */
+    .contact-section {
+      padding: 8rem 4rem;
+      border-top: 1px solid var(--grey);
+      display: flex; justify-content: space-between; align-items: flex-end;
+      flex-wrap: wrap; gap: 3rem;
+    }
+    .contact-heading {
+      font-size: clamp(2.5rem, 5vw, 5rem);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 0.95;
+      max-width: 600px;
+    }
+    .contact-heading .green { color: var(--green); }
+    .contact-links { display: flex; flex-direction: column; gap: 1rem; align-items: flex-end; }
+    .contact-link {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none;
+      display: flex; align-items: center; gap: 0.6rem;
+      transition: color 0.3s, gap 0.3s;
+    }
+    .contact-link:hover { color: var(--green); gap: 1rem; }
+    .contact-link .arrow { font-size: 1rem; }
+    footer {
+      padding: 2rem 4rem;
+      border-top: 1px solid var(--grey);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    footer p {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    footer .logo-small { color: var(--green); }
+
+    /* ════════════════════════════════════════
+       ── HEAVY SCROLL ANIMATIONS ──
+       ════════════════════════════════════════ */
+
+    /* Base reveal — resets when out of view */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      filter: blur(12px);
+      transition:
+        opacity 0.9s cubic-bezier(0.23,1,0.32,1),
+        transform 0.9s cubic-bezier(0.23,1,0.32,1),
+        filter 0.9s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+    /* RESET when leaving viewport — re-triggers next time */
+    .reveal.hidden-up {
+      opacity: 0;
+      transform: translateY(-30px);
+      filter: blur(10px);
+    }
+
+    /* Stagger delays */
+    .reveal-delay-1 { transition-delay: 0.08s; }
+    .reveal-delay-2 { transition-delay: 0.16s; }
+    .reveal-delay-3 { transition-delay: 0.24s; }
+    .reveal-delay-4 { transition-delay: 0.32s; }
+
+    /* Word-split spans */
+    .word {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(60px) skewY(4deg);
+      filter: blur(10px);
+      transition:
+        opacity 0.7s cubic-bezier(0.23,1,0.32,1),
+        transform 0.7s cubic-bezier(0.23,1,0.32,1),
+        filter 0.7s cubic-bezier(0.23,1,0.32,1);
+      will-change: transform, opacity, filter;
+    }
+    .word.in {
+      opacity: 1;
+      transform: translateY(0) skewY(0);
+      filter: blur(0);
+    }
+    .word.out-up {
+      opacity: 0;
+      transform: translateY(-50px) skewY(-3deg);
+      filter: blur(8px);
+    }
+
+    /* Char-split spans */
+    .char {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(80px) rotateX(90deg);
+      filter: blur(6px);
+      transition:
+        opacity 0.5s cubic-bezier(0.23,1,0.32,1),
+        transform 0.5s cubic-bezier(0.23,1,0.32,1),
+        filter 0.5s cubic-bezier(0.23,1,0.32,1);
+      transform-origin: center bottom;
+      will-change: transform, opacity, filter;
+    }
+    .char.in {
+      opacity: 1;
+      transform: translateY(0) rotateX(0);
+      filter: blur(0);
+    }
+    .char.out-up {
+      opacity: 0;
+      transform: translateY(-60px) rotateX(-60deg);
+      filter: blur(6px);
+    }
+
+    /* Glitch text */
+    .glitch-text {
+      position: relative;
+    }
+    .glitch-text.glitch-active::before,
+    .glitch-text.glitch-active::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .glitch-text.glitch-active::before {
+      animation: glitch-1 0.3s steps(2,end) forwards;
+      color: var(--green); clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+    }
+    .glitch-text.glitch-active::after {
+      animation: glitch-2 0.3s steps(2,end) forwards;
+      color: #ff0066; clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+    }
+    @keyframes glitch-1 {
+      0%   { transform: translate(0); }
+      25%  { transform: translate(-4px, 2px); }
+      50%  { transform: translate(4px, -2px); }
+      75%  { transform: translate(-2px, 4px); }
+      100% { transform: translate(0); }
+    }
+    @keyframes glitch-2 {
+      0%   { transform: translate(0); }
+      25%  { transform: translate(4px, -2px); }
+      50%  { transform: translate(-4px, 2px); }
+      75%  { transform: translate(2px, -4px); }
+      100% { transform: translate(0); }
+    }
+
+    /* Line slide-in from left */
+    .reveal-line {
+      opacity: 0;
+      transform: translateX(-60px);
+      filter: blur(8px);
+      transition:
+        opacity 0.8s cubic-bezier(0.23,1,0.32,1),
+        transform 0.8s cubic-bezier(0.23,1,0.32,1),
+        filter 0.8s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal-line.visible {
+      opacity: 1; transform: translateX(0); filter: blur(0);
+    }
+    .reveal-line.hidden-up {
+      opacity: 0; transform: translateX(60px); filter: blur(8px);
+    }
+
+    /* Scale reveal */
+    .reveal-scale {
+      opacity: 0;
+      transform: scale(0.85);
+      filter: blur(16px);
+      transition:
+        opacity 1s cubic-bezier(0.23,1,0.32,1),
+        transform 1s cubic-bezier(0.23,1,0.32,1),
+        filter 1s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal-scale.visible {
+      opacity: 1; transform: scale(1); filter: blur(0);
+    }
+    .reveal-scale.hidden-up {
+      opacity: 0; transform: scale(1.05); filter: blur(10px);
+    }
+
+    /* Skew reveal */
+    .reveal-skew {
+      opacity: 0;
+      transform: translateY(50px) skewX(-6deg);
+      filter: blur(10px);
+      transition:
+        opacity 0.85s cubic-bezier(0.23,1,0.32,1),
+        transform 0.85s cubic-bezier(0.23,1,0.32,1),
+        filter 0.85s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal-skew.visible {
+      opacity: 1; transform: translateY(0) skewX(0); filter: blur(0);
+    }
+    .reveal-skew.hidden-up {
+      opacity: 0; transform: translateY(-40px) skewX(3deg); filter: blur(8px);
+    }
+
+    /* Clip wipe (horizontal) */
+    .reveal-clip {
+      clip-path: inset(0 100% 0 0);
+      transition: clip-path 1s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal-clip.visible { clip-path: inset(0 0% 0 0); }
+    .reveal-clip.hidden-up { clip-path: inset(0 0% 0 100%); }
+
+    /* Floating particles */
+    .particle {
+      position: fixed;
+      width: 2px; height: 2px;
+      background: var(--green);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 2;
+      animation: float-particle linear infinite;
+      opacity: 0;
+    }
+    @keyframes float-particle {
+      0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.3; }
+      100% { transform: translateY(-10vh) translateX(var(--drift,20px)); opacity: 0; }
+    }
+
+    /* HEX counter overlay */
+    .hex-counter {
+      position: absolute;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.55rem;
+      color: rgba(0,255,135,0.15);
+      letter-spacing: 0.08em;
+      pointer-events: none;
+      user-select: none;
+      animation: hex-flicker 0.1s steps(1) infinite;
+      top: 2rem; right: 4rem;
+    }
+    @keyframes hex-flicker {
+      0%, 100% { opacity: 0.15; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Section horizontal scan line */
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      opacity: 0;
+      pointer-events: none;
+      animation: scan-sweep 3s ease-in-out infinite;
+    }
+    @keyframes scan-sweep {
+      0%   { top: 0; opacity: 0; }
+      5%   { opacity: 0.4; }
+      95%  { opacity: 0.1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      nav { padding: 1.4rem 1.5rem; }
+      .nav-links { display: none; }
+      .hero { padding: 0 1.5rem 4rem; }
+      section { padding: 5rem 1.5rem; }
+      .tools-grid { grid-template-columns: 1fr; }
+      .tool-card { border-right: none; border-bottom: 1px solid var(--grey); }
+      .project-row { grid-template-columns: 60px 1fr; gap: 1rem; }
+      .project-tags, .project-link { display: none; }
+      .about-layout { grid-template-columns: 1fr; gap: 3rem; }
+      .about-right { position: static; }
+      .contact-section { padding: 5rem 1.5rem; }
+      .contact-links { align-items: flex-start; }
+      footer { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MATRIX CANVAS -->
+  <canvas id="matrix-canvas"></canvas>
+
+  <!-- CURSOR -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-ring" id="cursor-ring"></div>
+
+  <!-- PARTICLES -->
+  <div id="particles-wrap"></div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#home" class="nav-logo">Desta<span>well</span></a>
+    <div class="nav-links">
+      <a href="#tools">Tools</a>
+      <a href="#projects">Projects</a>
+      <a href="#about">About</a>
+      <a href="https://github.com/Destawell" target="_blank" class="nav-cta">GitHub ↗</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-orb"></div>
+    <div style="position:relative; width:100%;">
+      <div class="hero-eyebrow reveal">Mobile Security Research</div>
+      <h1 class="reveal reveal-delay-1" id="hero-h1">
+        Build.<br>
+        <span class="outline">Hack.</span><br>
+        <span class="green">Ship.</span>
+      </h1>
+      <div class="hero-bottom reveal reveal-delay-2">
+        <p class="hero-desc">
+          No-root Termux &amp; Kali NetHunter tools<br>
+          for Android cybersecurity.<br>
+          Automate. Exploit. Secure.
+        </p>
+        <div class="hero-stats">
+          <div>
+            <div class="hero-stat-num">5<span>+</span></div>
+            <div class="hero-stat-label">Tools Built</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">100<span>+</span></div>
+            <div class="hero-stat-label">Contributions</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">100<span>%</span></div>
+            <div class="hero-stat-label">Open-Source</div>
+          </div>
+        </div>
+        <div class="scroll-hint">Scroll</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee-wrap">
+    <div class="marquee-track">
+      <span class="marquee-item"><span class="dot">●</span> Termux Automation</span>
+      <span class="marquee-item"><span class="dot">●</span> Kali NetHunter</span>
+      <span class="marquee-item"><span class="dot">●</span> Network Scanning</span>
+      <span class="marquee-item"><span class="dot">●</span> Android Security</span>
+      <span class="marquee-item"><span class="dot">●</span> No-Root Labs</span>
+      <span class="marquee-item"><span class="dot">●</span> Open Source</span>
+      <span class="marquee-item"><span class="dot">●</span> Mobile Pentesting</span>
+      <span class="marquee-item"><span class="dot">●</span> Malware Analysis</span>
+      <span class="marquee-item"><span class="dot">●</span> Termux Automation</span>
+      <span class="marquee-item"><span class="dot">●</span> Kali NetHunter</span>
+      <span class="marquee-item"><span class="dot">●</span> Network Scanning</span>
+      <span class="marquee-item"><span class="dot">●</span> Android Security</span>
+      <span class="marquee-item"><span class="dot">●</span> No-Root Labs</span>
+      <span class="marquee-item"><span class="dot">●</span> Open Source</span>
+      <span class="marquee-item"><span class="dot">●</span> Mobile Pentesting</span>
+      <span class="marquee-item"><span class="dot">●</span> Malware Analysis</span>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <section id="tools" style="position:relative;">
+    <div class="scan-line"></div>
+    <div class="hex-counter" id="hex-tools">0x0000</div>
+    <div class="section-label reveal reveal-line"><span class="index">01</span> What I Build</div>
+    <h2 class="section-heading" id="tools-heading">
+      Core Tools &amp;<br><span class="outline">Automation</span>
+    </h2>
+    <div class="tools-grid reveal-scale reveal-delay-2">
+      <div class="tool-card">
+        <div class="tool-num reveal reveal-delay-1">01 /</div>
+        <h3 class="reveal reveal-delay-2">Termux Automation</h3>
+        <p class="reveal reveal-delay-3">One-command fixes for storage permissions, broken repos, and failed installs on Android. Essential tooling for every Termux setup.</p>
+        <div class="tool-arrow reveal reveal-delay-4">Explore <span>→</span></div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-num reveal reveal-delay-2">02 /</div>
+        <h3 class="reveal reveal-delay-3">Kali NetHunter Integration</h3>
+        <p class="reveal reveal-delay-4">Rootless deployment of full penetration testing labs on mobile devices. Full Kali environment, zero root required.</p>
+        <div class="tool-arrow reveal reveal-delay-4">Explore <span>→</span></div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-num reveal reveal-delay-3">03 /</div>
+        <h3 class="reveal reveal-delay-4">Network &amp; Debug Tools</h3>
+        <p class="reveal reveal-delay-4">Lightweight scanners, output parsers, and intelligent error classifiers built specifically for Kali tools on Android.</p>
+        <div class="tool-arrow reveal reveal-delay-4">Explore <span>→</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section id="projects" style="position:relative;">
+    <div class="scan-line" style="animation-delay:1.5s;"></div>
+    <div class="hex-counter" id="hex-projects">0x0001</div>
+    <div class="section-label reveal reveal-line"><span class="index">02</span> Selected Work</div>
+    <h2 class="section-heading" id="projects-heading">
+      What I've<br><span class="outline">Shipped</span>
+    </h2>
+    <div class="projects-list">
+
+      <a href="https://github.com/Niranj-coder/Termux-fixer" target="_blank" class="project-row reveal">
+        <div class="project-index">001</div>
+        <div class="project-name">Termux-fixer</div>
+        <div class="project-tags">
+          <span class="project-tag">Termux</span>
+          <span class="project-tag">Automation</span>
+          <span class="project-tag">Bash</span>
+        </div>
+        <div class="project-link">GitHub ↗</div>
+      </a>
+
+      <a href="https://github.com/Niranj-coder/kali-termux-pro" target="_blank" class="project-row reveal reveal-delay-1">
+        <div class="project-index">002</div>
+        <div class="project-name">Kali-Termux-Pro</div>
+        <div class="project-tags">
+          <span class="project-tag">NetHunter</span>
+          <span class="project-tag">Mobile Lab</span>
+          <span class="project-tag">Android</span>
+        </div>
+        <div class="project-link">GitHub ↗</div>
+      </a>
+
+      <a href="https://github.com/Niranj-coder/Wraith-Scanner" target="_blank" class="project-row reveal reveal-delay-2">
+        <div class="project-index">003</div>
+        <div class="project-name">Wraith-Scanner</div>
+        <div class="project-tags">
+          <span class="project-tag">Scanner</span>
+          <span class="project-tag">Network</span>
+          <span class="project-tag">Python</span>
+        </div>
+        <div class="project-link">GitHub ↗</div>
+      </a>
+
+      <a href="https://github.com/Niranj-coder/Kali_Critic" target="_blank" class="project-row reveal reveal-delay-3">
+        <div class="project-index">004</div>
+        <div class="project-name">Kali_Critic</div>
+        <div class="project-tags">
+          <span class="project-tag">Debugger</span>
+          <span class="project-tag">Kali</span>
+          <span class="project-tag">Parser</span>
+        </div>
+        <div class="project-link">GitHub ↗</div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" style="position:relative;">
+    <div class="scan-line" style="animation-delay:0.5s;"></div>
+    <div class="hex-counter" id="hex-about">0x0002</div>
+    <div class="section-label reveal reveal-line"><span class="index">03</span> Who I Am</div>
+    <div class="about-layout">
+      <div>
+        <h2 class="section-heading reveal reveal-delay-1" id="about-heading" style="margin-bottom:2rem;">
+          Aspiring Security<br><span class="outline">Researcher</span>
+        </h2>
+        <div class="about-text reveal reveal-delay-2">
+          <p>I'm <strong>Destawell</strong> — focused on <strong>Malware Analysis</strong> and building real, hands-on penetration testing tools that run on Android without root.</p>
+          <p>My work lives in the intersection of <strong>mobile security</strong> and practical automation — making Kali NetHunter accessible to enthusiasts and red-teamers who work from their phone.</p>
+          <p>Everything I ship is <strong>open-source</strong>. No paywalls. No gatekeeping.</p>
+        </div>
+        <div class="about-skills reveal reveal-delay-3">
+          <div class="skill-row">
+            <span class="skill-name">Termux / Bash</span>
+            <div class="skill-bar-wrap"><div class="skill-bar" style="--w:0.9" data-width="0.9"></div></div>
+          </div>
+          <div class="skill-row">
+            <span class="skill-name">Kali Linux</span>
+            <div class="skill-bar-wrap"><div class="skill-bar" style="--w:0.85" data-width="0.85"></div></div>
+          </div>
+          <div class="skill-row">
+            <span class="skill-name">Python</span>
+            <div class="skill-bar-wrap"><div class="skill-bar" style="--w:0.8" data-width="0.8"></div></div>
+          </div>
+          <div class="skill-row">
+            <span class="skill-name">Network Pentesting</span>
+            <div class="skill-bar-wrap"><div class="skill-bar" style="--w:0.75" data-width="0.75"></div></div>
+          </div>
+          <div class="skill-row">
+            <span class="skill-name">Malware Analysis</span>
+            <div class="skill-bar-wrap"><div class="skill-bar" style="--w:0.65" data-width="0.65"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="about-right reveal reveal-delay-2">
+        <div class="about-card">
+          <div class="about-card-label">Stats</div>
+          <div class="about-card-stat">
+            <span class="about-card-stat-desc">Tools Deployed</span>
+            <span class="about-card-stat-num">5<span>+</span></span>
+          </div>
+          <div class="about-card-stat">
+            <span class="about-card-stat-desc">GH Contributions</span>
+            <span class="about-card-stat-num">100<span>+</span></span>
+          </div>
+          <div class="about-card-stat">
+            <span class="about-card-stat-desc">Platform</span>
+            <span class="about-card-stat-num" style="font-size:1.1rem;">Android</span>
+          </div>
+          <div class="about-card-stat">
+            <span class="about-card-stat-desc">License</span>
+            <span class="about-card-stat-num" style="font-size:1.1rem;">Open<span>-</span>Source</span>
+          </div>
+        </div>
+        <div class="terminal-block" style="margin-top:1.5rem;">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+            <div><span class="cmd">$ </span>whoami</div>
+            <div class="out">destawell — security researcher</div>
+            <div style="margin-top:0.5rem;"><span class="cmd">$ </span>ls tools/</div>
+            <div class="out">termux-fixer  kali-termux-pro</div>
+            <div class="out">wraith-scanner  kali_critic</div>
+            <div style="margin-top:0.5rem;"><span class="cmd">$ </span>nmap -sV 192.168.1.1</div>
+            <div class="out">Starting Nmap 7.94...</div>
+            <div class="out">PORT   STATE  SERVICE  VERSION</div>
+            <div class="out">22/tcp open   ssh      OpenSSH</div>
+            <div style="margin-top:0.5rem;"><span class="cmd">$ </span><span class="terminal-cursor"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <div class="contact-section" style="position:relative;">
+    <div class="scan-line" style="animation-delay:2s;"></div>
+    <div>
+      <div class="section-label reveal reveal-line"><span class="index">04</span> Get In Touch</div>
+      <h2 class="contact-heading" id="contact-heading">
+        Let's build<br>something<br><span class="green">dangerous.</span>
+      </h2>
+    </div>
+    <div class="contact-links reveal reveal-delay-2">
+      <a href="https://github.com/Destawell" target="_blank" class="contact-link">
+        <span class="arrow">→</span> GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/niranj-maheswar-0949883b3" target="_blank" class="contact-link">
+        <span class="arrow">→</span> LinkedIn
+      </a>
+      <a href="https://www.instagram.com/_niranj_maheswar_" target="_blank" class="contact-link">
+        <span class="arrow">→</span> Instagram
+      </a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 <span class="logo-small">Destawell</span></p>
+    <p>Packets encrypted · Logs erased</p>
+  </footer>
+
+  <script>
+  // ══════════════════════════════════════
+  // CURSOR
+  // ══════════════════════════════════════
+  const cursor = document.getElementById('cursor');
+  const ring   = document.getElementById('cursor-ring');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  (function animateCursor() {
+    cursor.style.transform = `translate(${mx - 5}px, ${my - 5}px)`;
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    ring.style.transform = `translate(${rx - 18}px, ${ry - 18}px)`;
+    requestAnimationFrame(animateCursor);
+  })();
+
+  // ══════════════════════════════════════
+  // MATRIX RAIN
+  // ══════════════════════════════════════
+  (function() {
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx    = canvas.getContext('2d');
+    let W, H, cols, drops;
+    const chars  = '01アイウエオカキクケコアBCDEF01010110アHEXNULLREFPTR';
+
+    function init() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      cols  = Math.floor(W / 18);
+      drops = Array.from({length: cols}, () => Math.random() * -H);
+    }
+    init();
+    window.addEventListener('resize', init);
+
+    setInterval(() => {
+      ctx.fillStyle = 'rgba(5,6,8,0.05)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#00ff87';
+      ctx.font = '11px DM Mono, monospace';
+      drops.forEach((y, i) => {
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(ch, i * 18, y);
+        drops[i] += 14;
+        if (drops[i] > H + 20 && Math.random() > 0.975) drops[i] = 0;
+      });
+    }, 55);
+  })();
+
+  // ══════════════════════════════════════
+  // FLOATING PARTICLES
+  // ══════════════════════════════════════
+  (function() {
+    const wrap = document.getElementById('particles-wrap');
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const x = Math.random() * 100;
+      const dur = 6 + Math.random() * 12;
+      const delay = Math.random() * -20;
+      const drift = (Math.random() - 0.5) * 80;
+      const size  = 1 + Math.random() * 2;
+      p.style.cssText = `
+        left:${x}vw;
+        width:${size}px; height:${size}px;
+        animation-duration:${dur}s;
+        animation-delay:${delay}s;
+        --drift:${drift}px;
+      `;
+      wrap.appendChild(p);
+    }
+  })();
+
+  // ══════════════════════════════════════
+  // HEX COUNTERS
+  // ══════════════════════════════════════
+  function hexTick(el) {
+    if (!el) return;
+    let v = 0;
+    const interval = setInterval(() => {
+      v += Math.floor(Math.random() * 256);
+      el.textContent = '0x' + v.toString(16).toUpperCase().padStart(4,'0');
+      if (v > 0xFFFF) { v = 0; }
+    }, 80);
+  }
+  ['hex-tools','hex-projects','hex-about'].forEach(id => hexTick(document.getElementById(id)));
+
+  // ══════════════════════════════════════
+  // WORD SPLIT HELPER
+  // ══════════════════════════════════════
+  function splitWords(el, className = 'word') {
+    const html = el.innerHTML;
+    // preserve spans/breaks
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    el.innerHTML = '';
+
+    function processNode(node, container) {
+      if (node.nodeType === 3) { // text
+        node.textContent.split(/(\s+)/).forEach(part => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) {
+            container.appendChild(document.createTextNode(part));
+          } else {
+            const span = document.createElement('span');
+            span.className = className;
+            span.textContent = part;
+            container.appendChild(span);
+          }
+        });
+      } else if (node.nodeType === 1) {
+        const clone = node.cloneNode(false);
+        Array.from(node.childNodes).forEach(child => processNode(child, clone));
+        container.appendChild(clone);
+      }
+    }
+    Array.from(temp.childNodes).forEach(child => processNode(child, el));
+  }
+
+  // ══════════════════════════════════════
+  // CHAR SPLIT HELPER
+  // ══════════════════════════════════════
+  function splitChars(el) {
+    const words = el.querySelectorAll('.word');
+    if (!words.length) return;
+    words.forEach(w => {
+      const text = w.textContent;
+      w.innerHTML = '';
+      w.className = ''; // remove word class, use chars inside
+      w.style.display = 'inline';
+      text.split('').forEach(ch => {
+        const span = document.createElement('span');
+        span.className = 'char';
+        span.textContent = ch;
+        w.appendChild(span);
+      });
+    });
+  }
+
+  // ══════════════════════════════════════
+  // APPLY WORD SPLITS TO HEADINGS
+  // ══════════════════════════════════════
+  const wordSplitEls = [
+    document.getElementById('tools-heading'),
+    document.getElementById('projects-heading'),
+    document.getElementById('about-heading'),
+    document.getElementById('contact-heading'),
+  ].filter(Boolean);
+
+  wordSplitEls.forEach(el => {
+    splitWords(el);
+    // stagger each word
+    el.querySelectorAll('.word').forEach((w, i) => {
+      w.style.transitionDelay = `${i * 0.06}s`;
+    });
+  });
+
+  // ══════════════════════════════════════
+  // MASTER INTERSECTION OBSERVER
+  // (triggers AND resets — re-animates every scroll)
+  // ══════════════════════════════════════
+  const allReveals = document.querySelectorAll(
+    '.reveal, .reveal-line, .reveal-scale, .reveal-skew, .reveal-clip'
+  );
+
+  const mainObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const el = e.target;
+      if (e.isIntersecting) {
+        // remove all out-states, add visible
+        el.classList.remove('hidden-up');
+        el.classList.add('visible');
+        // skill bars
+        el.querySelectorAll('.skill-bar[data-width]').forEach((bar, i) => {
+          setTimeout(() => {
+            bar.style.transform = `scaleX(${bar.dataset.width})`;
+          }, 300 + i * 120);
+        });
+      } else {
+        // RESET when element leaves viewport
+        el.classList.remove('visible');
+        el.classList.add('hidden-up');
+        // reset skill bars
+        el.querySelectorAll('.skill-bar[data-width]').forEach(bar => {
+          bar.style.transform = 'scaleX(0)';
+        });
+      }
+    });
+  }, { threshold: 0.12 });
+
+  allReveals.forEach(el => mainObs.observe(el));
+
+  // ══════════════════════════════════════
+  // WORD OBSERVER — animates heading words
+  // ══════════════════════════════════════
+  const wordObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const words = e.target.querySelectorAll('.word');
+      const chars = e.target.querySelectorAll('.char');
+      if (e.isIntersecting) {
+        words.forEach(w => { w.classList.remove('out-up'); w.classList.add('in'); });
+        chars.forEach(c => { c.classList.remove('out-up'); c.classList.add('in'); });
+      } else {
+        words.forEach(w => { w.classList.remove('in'); w.classList.add('out-up'); });
+        chars.forEach(c => { c.classList.remove('in'); c.classList.add('out-up'); });
+      }
+    });
+  }, { threshold: 0.15 });
+
+  wordSplitEls.forEach(el => wordObs.observe(el));
+
+  // ══════════════════════════════════════
+  // GLITCH on section headings entering view
+  // ══════════════════════════════════════
+  const glitchObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target;
+        const txt = el.textContent.trim().split('\n')[0];
+        el.setAttribute('data-text', txt);
+        el.classList.add('glitch-active');
+        setTimeout(() => el.classList.remove('glitch-active'), 400);
+      }
+    });
+  }, { threshold: 0.3 });
+
+  wordSplitEls.forEach(el => glitchObs.observe(el));
+
+  // ══════════════════════════════════════
+  // SKILL BARS — reset + reanimate on scroll
+  // ══════════════════════════════════════
+  const skillsObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const bars = e.target.querySelectorAll('.skill-bar');
+      if (e.isIntersecting) {
+        bars.forEach((bar, i) => {
+          setTimeout(() => {
+            bar.style.transform = `scaleX(${parseFloat(bar.dataset.width)})`;
+          }, i * 130);
+        });
+      } else {
+        bars.forEach(bar => { bar.style.transform = 'scaleX(0)'; });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.about-skills').forEach(el => skillsObs.observe(el));
+  document.querySelectorAll('.skill-bar').forEach(bar => {
+    bar.style.transition = 'transform 1.2s cubic-bezier(0.23,1,0.32,1)';
+  });
+
+  // ══════════════════════════════════════
+  // SCROLL-DRIVEN PARALLAX on hero
+  // ══════════════════════════════════════
+  const heroH1    = document.getElementById('hero-h1');
+  const heroOrb   = document.querySelector('.hero-orb');
+  const heroGrid  = document.querySelector('.hero-grid-bg');
+  window.addEventListener('scroll', () => {
+    const sy = window.scrollY;
+    if (heroH1)   heroH1.style.transform   = `translateY(${sy * 0.3}px)`;
+    if (heroOrb)  heroOrb.style.transform  = `translate(-50%, calc(-50% + ${sy * 0.15}px))`;
+    if (heroGrid) heroGrid.style.transform = `translateY(${sy * 0.08}px)`;
+  }, { passive: true });
+
+  // ══════════════════════════════════════
+  // TYPEWRITER GLITCH on terminal — re-runs on scroll
+  // ══════════════════════════════════════
+  const termObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) runTypewriter();
+    });
+  }, { threshold: 0.4 });
+  const termBlock = document.querySelector('.terminal-block');
+  if (termBlock) termObs.observe(termBlock);
+
+  function runTypewriter() {
+    const body = document.getElementById('terminal-body');
+    if (!body) return;
+    const lines = [
+      { type: 'cmd', text: '$ whoami' },
+      { type: 'out', text: 'destawell — security researcher' },
+      { type: 'cmd', text: '$ ls tools/' },
+      { type: 'out', text: 'termux-fixer  kali-termux-pro' },
+      { type: 'out', text: 'wraith-scanner  kali_critic' },
+      { type: 'cmd', text: '$ nmap -sV 192.168.1.1' },
+      { type: 'out', text: 'Starting Nmap 7.94...' },
+      { type: 'out', text: 'PORT   STATE  SERVICE  VERSION' },
+      { type: 'out', text: '22/tcp open   ssh      OpenSSH 8.9' },
+      { type: 'out', text: '80/tcp open   http     Apache 2.4' },
+    ];
+    body.innerHTML = '';
+    let lineIdx = 0;
+    let charIdx = 0;
+    let delay   = 0;
+
+    function typeNext() {
+      if (lineIdx >= lines.length) {
+        const cursor = document.createElement('div');
+        cursor.innerHTML = '<span class="cmd">$ </span><span class="terminal-cursor"></span>';
+        body.appendChild(cursor);
+        return;
+      }
+      const line = lines[lineIdx];
+      const row  = document.createElement('div');
+      if (line.type === 'out') row.className = 'out';
+      if (lineIdx % 3 === 0 && lineIdx > 0) row.style.marginTop = '0.5rem';
+      body.appendChild(row);
+
+      const prefix = line.type === 'cmd' ? '<span class="cmd">$ </span>' : '';
+      row.innerHTML = prefix;
+      const clean = line.type === 'cmd' ? line.text.slice(2) : line.text;
+      charIdx = 0;
+
+      function typeChar() {
+        if (charIdx < clean.length) {
+          row.innerHTML = prefix + clean.slice(0, ++charIdx) +
+            (charIdx < clean.length ? '<span class="terminal-cursor"></span>' : '');
+          setTimeout(typeChar, 28 + Math.random() * 30);
+        } else {
+          lineIdx++;
+          setTimeout(typeNext, 100 + Math.random() * 80);
+        }
+      }
+      typeChar();
+    }
+    typeNext();
+  }
+
+  // ══════════════════════════════════════
+  // RANDOM GLITCH FLICKER on nav logo
+  // ══════════════════════════════════════
+  const navLogo = document.querySelector('.nav-logo');
+  if (navLogo) {
+    navLogo.classList.add('glitch-text');
+    navLogo.setAttribute('data-text', navLogo.textContent);
+    setInterval(() => {
+      navLogo.classList.add('glitch-active');
+      setTimeout(() => navLogo.classList.remove('glitch-active'), 300);
+    }, 4000 + Math.random() * 4000);
+  }
+
+  // ══════════════════════════════════════
+  // STAGGERED PROJECT ROWS — blur-in from alternating sides
+  // ══════════════════════════════════════
+  document.querySelectorAll('.project-row').forEach((row, i) => {
+    const fromRight = i % 2 === 0;
+    row.style.setProperty('--row-from', fromRight ? '80px' : '-80px');
+    // override default reveal with custom
+    row.style.transform = `translateX(var(--row-from)) skewX(${fromRight ? '-3deg' : '3deg'})`;
+    row.style.filter = 'blur(10px)';
+    row.style.opacity = '0';
+  });
+
+  const rowObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.transition = 'opacity 0.7s cubic-bezier(0.23,1,0.32,1), transform 0.7s cubic-bezier(0.23,1,0.32,1), filter 0.7s cubic-bezier(0.23,1,0.32,1)';
+        e.target.style.transform = 'translateX(0) skewX(0)';
+        e.target.style.filter    = 'blur(0)';
+        e.target.style.opacity   = '1';
+      } else {
+        // reset with opposite direction
+        const i = Array.from(document.querySelectorAll('.project-row')).indexOf(e.target);
+        const fromRight = i % 2 === 0;
+        e.target.style.transition = 'none';
+        setTimeout(() => {
+          e.target.style.transition = '';
+          e.target.style.transform = `translateX(${fromRight ? '80px' : '-80px'}) skewX(${fromRight ? '-3deg' : '3deg'})`;
+          e.target.style.filter    = 'blur(10px)';
+          e.target.style.opacity   = '0';
+        }, 50);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.project-row').forEach(row => rowObs.observe(row));
+
+  // ══════════════════════════════════════
+  // TOOL CARDS individual blur-in on scroll
+  // ══════════════════════════════════════
+  document.querySelectorAll('.tool-card').forEach((card, i) => {
+    card.style.opacity   = '0';
+    card.style.transform = `translateY(60px) scale(0.94)`;
+    card.style.filter    = 'blur(12px)';
+    card.style.transition = `opacity 0.8s ${i*0.12}s cubic-bezier(0.23,1,0.32,1), transform 0.8s ${i*0.12}s cubic-bezier(0.23,1,0.32,1), filter 0.8s ${i*0.12}s cubic-bezier(0.23,1,0.32,1)`;
+  });
+
+  const cardObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const cards = e.target.querySelectorAll('.tool-card');
+      if (e.isIntersecting) {
+        cards.forEach(c => {
+          c.style.opacity   = '1';
+          c.style.transform = 'translateY(0) scale(1)';
+          c.style.filter    = 'blur(0)';
+        });
+      } else {
+        cards.forEach((c, i) => {
+          c.style.opacity   = '0';
+          c.style.transform = 'translateY(60px) scale(0.94)';
+          c.style.filter    = 'blur(12px)';
+        });
+      }
+    });
+  }, { threshold: 0.1 });
+  const toolsGrid = document.querySelector('.tools-grid');
+  if (toolsGrid) cardObs.observe(toolsGrid);
+
+  </script>
+</body>
+</html>
